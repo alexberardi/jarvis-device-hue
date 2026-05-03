@@ -262,18 +262,24 @@ Paste your **Bridge IP** and **Username** into the fields below.
         bridge_ip: str | None = self._bridge_ip()
         username: str | None = self._username()
 
-        # Runtime passes a DiscoveredDevice as first arg
+        # Runtime passes a DiscoveredDevice as first arg; extract light_id
+        # from every possible source since different code paths provide it
+        # in different places (device object, data dict, or kwargs).
         entity_id: str = ""
         light_id: str = ""
         if hasattr(device, "cloud_id"):
             entity_id = getattr(device, "entity_id", "")
-            light_id = getattr(device, "cloud_id", "") or ""
+            light_id = str(getattr(device, "cloud_id", "") or "")
             if not light_id:
                 light_id = (getattr(device, "extra", {}) or {}).get("light_id", "")
-        else:
-            # Fallback: first arg is an IP string, check kwargs
-            entity_id = kwargs.get("entity_id", "")
-            light_id = kwargs.get("light_id", "") or kwargs.get("cloud_id", "")
+        if not light_id and isinstance(data, dict):
+            light_id = str(data.get("cloud_id", "") or "")
+            if not light_id:
+                light_id = str(data.get("light_id", "") or "")
+            if not entity_id:
+                entity_id = str(data.get("entity_id", "") or "")
+        if not light_id:
+            light_id = str(kwargs.get("light_id", "") or kwargs.get("cloud_id", "") or "")
 
         if not bridge_ip or not username:
             return DeviceControlResult(
@@ -383,13 +389,13 @@ Paste your **Bridge IP** and **Username** into the fields below.
         username: str | None = self._username()
 
         # Extract light_id from kwargs or device object
-        light_id: str = kwargs.get("light_id", "")
+        light_id: str = str(kwargs.get("light_id", "") or "")
         if not light_id:
             device: Any = kwargs.get("device")
             if device and hasattr(device, "cloud_id"):
-                light_id = getattr(device, "cloud_id", "") or ""
-            if not light_id:
-                light_id = kwargs.get("cloud_id", "")
+                light_id = str(getattr(device, "cloud_id", "") or "")
+        if not light_id:
+            light_id = str(kwargs.get("cloud_id", "") or "")
 
         if not bridge_ip or not username or not light_id:
             return {"error": "Configuration incomplete or light_id missing"}
