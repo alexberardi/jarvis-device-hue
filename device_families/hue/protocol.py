@@ -453,6 +453,17 @@ Paste your **Bridge IP** and **Username** into the fields below.
                 state["name"] = light_data.get("name", "")
                 state["type"] = light_data.get("type", "")
 
+                # Report available features based on light type so the
+                # mobile UI hides controls the device doesn't support.
+                light_type_lower: str = light_data.get("type", "").lower()
+                features: list[str] = ["brightness"]
+                if "color" in light_type_lower:
+                    features.append("color")
+                    features.append("color_temp")
+                elif "temperature" in light_type_lower:
+                    features.append("color_temp")
+                state["available_features"] = features
+
                 return state
 
         except Exception as e:
