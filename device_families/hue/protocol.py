@@ -254,21 +254,26 @@ Paste your **Bridge IP** and **Username** into the fields below.
 
     async def control(
         self,
-        ip: str,
+        device: Any,
         action: str,
         data: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> DeviceControlResult:
         bridge_ip: str | None = self._bridge_ip()
         username: str | None = self._username()
-        entity_id: str = kwargs.get("entity_id", "")
 
-        # Extract light_id from kwargs or cloud_id
-        light_id: str = kwargs.get("light_id", "")
-        if not light_id:
-            cloud_id: str = kwargs.get("cloud_id", "")
-            if cloud_id:
-                light_id = cloud_id
+        # Runtime passes a DiscoveredDevice as first arg
+        entity_id: str = ""
+        light_id: str = ""
+        if hasattr(device, "cloud_id"):
+            entity_id = getattr(device, "entity_id", "")
+            light_id = getattr(device, "cloud_id", "") or ""
+            if not light_id:
+                light_id = (getattr(device, "extra", {}) or {}).get("light_id", "")
+        else:
+            # Fallback: first arg is an IP string, check kwargs
+            entity_id = kwargs.get("entity_id", "")
+            light_id = kwargs.get("light_id", "") or kwargs.get("cloud_id", "")
 
         if not bridge_ip or not username:
             return DeviceControlResult(
@@ -298,7 +303,7 @@ Paste your **Bridge IP** and **Username** into the fields below.
             state_body = {"on": False}
         elif action == "toggle":
             current: dict[str, Any] | None = await self.get_state(
-                ip, light_id=light_id, entity_id=entity_id,
+                "", light_id=light_id,
             )
             is_on: bool = (current or {}).get("state") == "on"
             state_body = {"on": not is_on}
@@ -377,11 +382,14 @@ Paste your **Bridge IP** and **Username** into the fields below.
         bridge_ip: str | None = self._bridge_ip()
         username: str | None = self._username()
 
+        # Extract light_id from kwargs or device object
         light_id: str = kwargs.get("light_id", "")
         if not light_id:
-            cloud_id: str = kwargs.get("cloud_id", "")
-            if cloud_id:
-                light_id = cloud_id
+            device: Any = kwargs.get("device")
+            if device and hasattr(device, "cloud_id"):
+                light_id = getattr(device, "cloud_id", "") or ""
+            if not light_id:
+                light_id = kwargs.get("cloud_id", "")
 
         if not bridge_ip or not username or not light_id:
             return {"error": "Configuration incomplete or light_id missing"}
