@@ -15,7 +15,7 @@ from jarvis_command_sdk import (
     JarvisStorage,
 )
 
-from hue_shared.color import rgb_to_xy, xy_to_rgb
+from hue_shared.color import resolve_color, rgb_to_xy, xy_to_rgb
 
 try:
     from jarvis_log_client import JarvisLogger
@@ -319,9 +319,16 @@ Paste your **Bridge IP** and **Username** into the fields below.
             bri: int = max(1, int(pct / 100.0 * 254))
             state_body = {"on": True, "bri": bri}
         elif action == "set_color":
-            if "rgb" in data:
-                rgb = data["rgb"]
-                r, g, b = int(rgb[0]), int(rgb[1]), int(rgb[2])
+            # Accept an explicit ``rgb`` triple or a spoken ``color`` name
+            # ("green", "warm white", "255,0,128", "#ff0080") — both resolve
+            # to RGB via the shared SDK palette, then to Hue's CIE xy space.
+            # Prefer an explicit rgb, but fall back to the spoken color when the
+            # rgb value is missing or unusable.
+            rgb_val: tuple[int, int, int] | None = (
+                resolve_color(data.get("rgb")) or resolve_color(data.get("color"))
+            )
+            if rgb_val is not None:
+                r, g, b = rgb_val
                 xy: tuple[float, float] = rgb_to_xy(r, g, b)
                 state_body = {"on": True, "xy": list(xy)}
             elif "color_temp" in data:
@@ -334,7 +341,7 @@ Paste your **Bridge IP** and **Username** into the fields below.
             else:
                 return DeviceControlResult(
                     success=False, entity_id=entity_id, action=action,
-                    error="set_color requires 'rgb', 'color_temp', or 'xy' param",
+                    error="set_color requires 'rgb', 'color', 'color_temp', or 'xy' param",
                 )
         elif action == "set_color_temp":
             kelvin = int(data.get("color_temp", data.get("temperature", 4000)))

@@ -1,35 +1,33 @@
-"""CIE XY color conversion and named color lookup for Philips Hue."""
+"""CIE XY color conversion for Philips Hue.
+
+Named colors and name -> RGB resolution live in the shared SDK palette
+(:mod:`jarvis_command_sdk.color`) so every Jarvis device package resolves
+spoken colors identically. This module re-exports them and adds the
+Hue-specific RGB <-> CIE 1931 xy conversion.
+"""
 
 from __future__ import annotations
 
+try:
+    from jarvis_command_sdk import NAMED_COLORS, resolve_color
+except ImportError:  # SDK predates the shared palette — minimal local fallback
+    NAMED_COLORS = {
+        "red": (255, 0, 0), "green": (0, 255, 0), "blue": (0, 0, 255),
+        "yellow": (255, 255, 0), "orange": (255, 165, 0), "purple": (128, 0, 128),
+        "pink": (255, 105, 180), "cyan": (0, 255, 255), "white": (255, 255, 255),
+        "warm white": (255, 214, 170), "cool white": (200, 220, 255),
+    }
 
-# Named colors → RGB for voice commands like "set the lights to blue"
-NAMED_COLORS: dict[str, tuple[int, int, int]] = {
-    "red": (255, 0, 0),
-    "green": (0, 255, 0),
-    "blue": (0, 0, 255),
-    "yellow": (255, 255, 0),
-    "orange": (255, 165, 0),
-    "purple": (128, 0, 128),
-    "violet": (148, 0, 211),
-    "pink": (255, 105, 180),
-    "cyan": (0, 255, 255),
-    "teal": (0, 128, 128),
-    "magenta": (255, 0, 255),
-    "white": (255, 255, 255),
-    "warm white": (255, 214, 170),
-    "cool white": (200, 220, 255),
-    "lavender": (200, 162, 200),
-    "coral": (255, 127, 80),
-    "turquoise": (64, 224, 208),
-    "gold": (255, 215, 0),
-    "lime": (0, 255, 0),
-    "indigo": (75, 0, 130),
-    "salmon": (250, 128, 114),
-    "mint": (152, 255, 152),
-    "peach": (255, 218, 185),
-    "sky blue": (135, 206, 235),
-}
+    def resolve_color(value: object) -> tuple[int, int, int] | None:  # type: ignore[misc]
+        if isinstance(value, (list, tuple)) and len(value) == 3:
+            try:
+                r, g, b = (int(c) for c in value)
+            except (TypeError, ValueError):
+                return None
+            return (r, g, b) if all(0 <= c <= 255 for c in (r, g, b)) else None
+        if not isinstance(value, str):
+            return None
+        return NAMED_COLORS.get(value.strip().lower())
 
 
 def _gamma_correct(value: float) -> float:
@@ -87,8 +85,3 @@ def xy_to_rgb(x: float, y: float, brightness: float = 1.0) -> tuple[int, int, in
     g_out: int = max(0, min(255, int(reverse_gamma(max(0.0, g_lin)) * 255)))
     b_out: int = max(0, min(255, int(reverse_gamma(max(0.0, b_lin)) * 255)))
     return (r_out, g_out, b_out)
-
-
-def resolve_color_name(name: str) -> tuple[int, int, int] | None:
-    """Look up a named color, returning RGB tuple or None."""
-    return NAMED_COLORS.get(name.lower().strip())

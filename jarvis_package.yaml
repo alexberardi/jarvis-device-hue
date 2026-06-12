@@ -4,8 +4,8 @@ display_name: Philips Hue RGB Lights
 description: >-
   Philips Hue light discovery and control via local Bridge API.
   Supports on/off, brightness, RGB color, color temperature, and
-  voice commands for natural light control.
-version: 1.0.0
+  voice control through the generic device-control path.
+version: 1.1.0
 min_jarvis_version: "0.9.0"
 license: MIT
 
@@ -32,11 +32,6 @@ components:
     name: hue
     path: device_families/hue/protocol.py
     description: Philips Hue bridge device discovery and control
-
-  - type: command
-    name: control_hue_lights
-    path: commands/control_hue_lights/command.py
-    description: Voice command for controlling Hue RGB lights
 
 packages:
   - name: httpx
